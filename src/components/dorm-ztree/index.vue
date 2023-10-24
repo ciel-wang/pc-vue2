@@ -1,0 +1,181 @@
+<template>
+  <vue-magic-tree
+    ref="dormZtreeRef"
+    :setting="setting"
+    :nodes="nodes"
+    @onClick="onClick"
+    @onCheck="onCheck"
+    @onCreated="handleCreated"
+  />
+</template>
+
+<script>
+  import { getDormZtree } from "@/api/dorm/dorm_mng.js";
+  import VueMagicTree from 'vue-magic-tree'
+  import {mapGetters} from "vuex";
+  export default{
+    name:'dorm-ztree',
+    props:{
+      node : {
+        type:Array,
+        required:true
+      },
+      isCheck:{
+        type:Boolean,
+        default:false
+      },
+      stype:{
+        type:Boolean,
+        default:true
+      },
+      noDorm:{
+        type:Boolean,
+        default:false
+      },
+      showApartment:{
+        type:Boolean,
+        default:false
+      },
+      showStudentDorm:{
+        type:Boolean,
+        default:false
+      }
+    },
+    components: {
+      VueMagicTree
+     },
+     mounted(){
+       this.getDormZtreeInit()
+     },
+     computed: {
+       ...mapGetters(["colorName"]),
+       },
+     data(){
+       return {
+         nodes:[],
+         setting: {
+           edit: {
+             enable: false,
+             drag: {
+               isMove: false
+             },
+             showRemoveBtn: false,
+             showRenameBtn: false
+           },
+           check: {
+             enable: this.isCheck
+           },
+           data: {
+             simpleData: {
+               enable: true,
+               pIdKey: "parentId"
+             },
+             // 设置图标库(采用iconfont class形式)
+             iconMap: {
+                 0: 'icon-xiaoyuan',
+                 1: 'icon-loudong',
+                 2: 'icon-louceng',
+                 3: 'icon-xueshengsusheok'
+             },
+             // 设置对应每个节点的节点类型，与数据中customType对应(25行)
+             key: {
+               nodeType: 'customType'
+             }
+           },
+           view: {
+             // 开启图标显示功能
+             showIcon: true,
+           },
+         },
+       }
+     },
+     methods:{
+       getDormZtreeInit(){
+         let params = {}
+         if(!this.stype){
+           params['stype'] = "NODORM"
+         }
+         getDormZtree(params).then(res => {
+           var arr = [];
+           this.transTreeData(res.data,arr)
+           this.nodes = arr;
+         });
+       },
+       //递归调用，对数据进行处理
+       transTreeData(datas,arr){
+         if(datas.length){
+            for(var i=0;i<datas.length;i++){
+              let data = datas[i];
+              var parentId = data.treePid
+              let value = data.valueStr.split('-')
+              var customType = value[0] == 'SCHOOL' ? 0 : (value[0] == 'FLOOR' && value[2] == 1) ? 1 : (value[0] == 'FLOOR' && value[2] == 2) ? 2 : 3
+              // 只显示到楼层
+              if(this.noDorm && value[0] == 'DORM'){
+                continue;
+              }else if(this.showApartment && value[0] == 'DORM' && value[2] == 1){
+                continue;
+              }else if(this.showStudentDorm && value[0] == 'DORM' && value[2] == 2){
+                continue;
+              }else{
+                arr.push({"id":data.treeCid,"parentId":parentId,"name":data.label,"customType":customType,open: false,valueStr:data.valueStr})
+              }
+              if(data.children){
+                this.transTreeData(data.children,arr)
+              }
+            }
+         }
+       },
+       onClick: function(evt, treeId, treeNode) {
+         this.treeDeptId = treeNode.id;
+         // document.getElementById(treeNode.tId+"_span").style="color:"+this.colorName;
+         // document.getElementById(treeNode.tId+"_ico").style="color:"+this.colorName;
+
+        // var treeObj = $.fn.zTree.getZTreeObj(treeId);
+        // var nodes = treeObj.getSelectedNodes();
+        // if (nodes.length>0) {
+        //     var node = nodes[0].getParentNode();
+        //     if(node){
+        //       treeObj.expandNode(nodes, true, false, true);
+        //     }
+        // 	treeObj.expandNode(nodes[0], true, false, true);
+        // }
+
+         //修改名称
+         // var cls = document.getElementsByClassName("node_name")
+         // for(var i=0;i<cls.length;i++){
+         //   if(cls[i].id != treeNode.tId+"_span"){
+         //     cls[i].style="color:#555555"
+         //   }
+         // }
+
+         // //修改图标
+         // var cls = document.getElementsByClassName("iconfont")
+         // for(var i=0;i<cls.length;i++){
+         //   if(cls[i].id != treeNode.tId+"_ico"){
+         //     // cls[i].style="color:#555555"
+         //   }
+         // }
+         this.$emit("click",treeNode)
+       },
+       onCheck(evt, treeId, treeNode){
+        var checkedNodes = this.$refs.dormZtreeRef.ztreeObj.getCheckedNodes();
+        let treeData = [];
+        for (var n = 0; n < checkedNodes.length; n++) {
+          treeData.push(checkedNodes[n]);
+        }
+        this.$emit("onCheck",treeData)
+       },
+     }
+  }
+</script>
+
+<style>
+  .button{
+    margin: 0 -1px 0 0 !important;
+    line-height: 20px !important;
+  }
+
+  .center_open::before{
+    left : 7px !important;
+  }
+</style>
